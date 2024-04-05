@@ -1,0 +1,76 @@
+﻿Procedimiento para hacer un grupo replicado
+
+crear directorios
+md /data/db1
+md /data/db2
+md /data/db3
+
+levantar servicios
+mongod --port 27021 --dbpath /data/db1 --replSet redisybd --smallfiles --oplogSize 128
+mongod --port 27022 --dbpath /data/db2 --replSet redisybd --smallfiles --oplogSize 128
+mongod --port 27023 --dbpath /data/db3 --replSet redisybd --smallfiles --oplogSize 128
+
+levantar consolas
+mongo --port 27021
+mongo --port 27022
+mongo --port 27023
+En cada consola poner:
+
+rsconf = {
+           _id: "redisybd",
+           members: [
+                      {
+                       _id: 0,
+                       host: "localhost:27021"
+                      }
+                    ]
+         }
+		 
+
+iniciar cluster
+rs.initiate( rsconf )
+
+dar información cluster
+rs.conf()
+
+agregar nodos en el primario para replicar
+rs.add("localhost:27022")
+rs.add("localhost:27023")		 
+
+lectura en secundarios
+db.getMongo().setSlaveOk()
+
+resincronizar
+replSetSyncFrom: "localhost:27021" 
+replSetSyncFrom: "localhost:27022" 
+replSetSyncFrom: "localhost:27023" 
+
+
+En primario checa que bds hay
+show dbs
+
+use universo
+db.persona.insert({nombre:"Pilar"})
+
+show dbs
+show collections
+
+Ya debe estar db universo y la coleccion persona
+
+en los secundarios show dbs
+show collections
+db.persona.find()
+y debera aparecer los datos de la coleccion que se creo en universo en la primaria
+
+
+Ejercicio de tirar el primario y que un secundario tome el control, se cierra la ventana del servidor del primario
+
+al dar rs.conf() a los que eran los secundarios uno de ellos dira que ahora es el primario
+
+
+ahora en el nuevo primario hago:
+db.persona.insert({nombre:"Jorge"})
+db.persona.find()
+En el primario y secundario mandara todos los datos actualizados y sincronizados
+
+Si levantamos el primario original con mongod este queda como secundario
